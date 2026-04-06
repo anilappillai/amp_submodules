@@ -1,0 +1,50 @@
+## Build output
+bin/
+obj/
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+## NuGet
+*.nupkg
+*.snupkg
+**/packages/
+!**/packages/build/
+nuget.config.lock.json
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Publish output
+publish/
+PublishProfiles/
+
+## Logs
+*.log
+logs/
+
+## Test results
+TestResults/
+coverage/
+*.trx
+*.coveragexml
+*.coverage
+
+## Environment / secrets
+.env
+.env.*
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+secrets.json
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
