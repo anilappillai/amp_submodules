@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Amp.Core.Extensions</RootNamespace>
+    <AssemblyName>Amp.Core.Extensions</AssemblyName>
+    <Description>Service collection extensions for DI, API versioning, AWS metrics, and common service registrations.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Amp.Core.Common\Amp.Core.Common.csproj" />
+    <ProjectReference Include="..\Amp.Core.Services.Abstractions\Amp.Core.Services.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- API Versioning -->
+    <PackageReference Include="Asp.Versioning.Mvc" Version="8.*" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.*" />
+
+    <!-- AWS Metrics / CloudWatch -->
+    <PackageReference Include="AWSSDK.CloudWatch" Version="3.7.*" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.*" />
+
+    <!-- DI & Configuration -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.*" />
+
+    <!-- Health Checks -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.*" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.*" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.*" />
+    <PackageReference Include="AspNetCore.HealthChecks.Aws.S3" Version="8.*" />
+
+    <!-- Swagger -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.*" />
+  </ItemGroup>
+
+</Project>
