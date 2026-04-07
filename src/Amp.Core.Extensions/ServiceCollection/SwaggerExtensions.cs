@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Amp.Core.Extensions.ServiceCollection;
@@ -37,14 +37,11 @@ public static class SwaggerExtensions
                 Description = "Enter your JWT token (without the 'Bearer' prefix)."
             });
 
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
             {
                 {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-                    },
-                    Array.Empty<string>()
+                    new OpenApiSecuritySchemeReference("Bearer"),
+                    []
                 }
             });
 
@@ -74,37 +71,3 @@ public static class SwaggerExtensions
     }
 }
 
-internal sealed class ConfigureSwaggerOptions(
-    IApiVersionDescriptionProvider provider,
-    string title,
-    string description) : IConfigureOptions<SwaggerGenOptions>
-{
-    public void Configure(SwaggerGenOptions options)
-    {
-        foreach (var desc in provider.ApiVersionDescriptions)
-        {
-            options.SwaggerDoc(desc.GroupName, new OpenApiInfo
-            {
-                Title = title,
-                Version = desc.ApiVersion.ToString(),
-                Description = desc.IsDeprecated ? $"{description} — **DEPRECATED**" : description
-            });
-        }
-    }
-}
-
-/// <summary>Adds the X-Correlation-Id header to every Swagger operation.</summary>
-internal sealed class CorrelationIdOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOperationFilter
-{
-    public void Apply(OpenApiOperation operation, OperationFilterContext context)
-    {
-        operation.Parameters ??= [];
-        operation.Parameters.Add(new OpenApiParameter
-        {
-            Name = "X-Correlation-Id",
-            In = ParameterLocation.Header,
-            Required = false,
-            Schema = new OpenApiSchema { Type = "string", Format = "uuid" }
-        });
-    }
-}

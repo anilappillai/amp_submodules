@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -62,16 +63,3 @@ public static class CommonServiceExtensions
     }
 }
 
-public sealed class CoreServicesOptions
-{
-    public bool EnableResponseCompression { get; set; } = true;
-    public bool EnableCors { get; set; } = true;
-    public string[] AllowedOrigins { get; set; } = ["*"];
-    public bool EnableApiVersioning { get; set; } = true;
-}
-
-public sealed record AppVersionInfo(
-    string ApplicationName,
-    string Version,
-    string BuildSha,
-    DateTime StartedAt);

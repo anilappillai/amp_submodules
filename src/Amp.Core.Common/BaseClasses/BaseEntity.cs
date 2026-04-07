@@ -26,24 +26,3 @@ public abstract class BaseEntity
     /// <summary>Row version for optimistic concurrency control.</summary>
     public byte[]? RowVersion { get; set; }
 }
-
-/// <summary>
-/// Base entity with a typed integer primary key.
-/// </summary>
-public abstract class BaseEntity<TKey> : BaseEntity
-{
-    public TKey Id { get; set; } = default!;
-}
-
-/// <summary>
-/// Convenience alias: <see cref="BaseEntity{TKey}"/> with an <see cref="int"/> key.
-/// </summary>
-public abstract class BaseIntEntity : BaseEntity<int> { }
-
-/// <summary>
-/// Convenience alias: <see cref="BaseEntity{TKey}"/> with a <see cref="Guid"/> key.
-/// </summary>
-public abstract class BaseGuidEntity : BaseEntity<Guid>
-{
-    protected BaseGuidEntity() => Id = Guid.NewGuid();
-}

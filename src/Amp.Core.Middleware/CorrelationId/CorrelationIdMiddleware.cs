@@ -60,14 +60,3 @@ public sealed class CorrelationIdMiddleware(
     }
 }
 
-/// <summary>Accessor injected into downstream services to read the current correlation ID.</summary>
-public interface ICorrelationIdAccessor
-{
-    string? CorrelationId { get; }
-}
-
-internal sealed class HttpContextCorrelationIdAccessor(IHttpContextAccessor accessor) : ICorrelationIdAccessor
-{
-    public string? CorrelationId =>
-        accessor.HttpContext?.Items["CorrelationId"]?.ToString();
-}

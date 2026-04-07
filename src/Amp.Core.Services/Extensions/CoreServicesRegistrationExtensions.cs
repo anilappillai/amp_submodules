@@ -90,24 +90,3 @@ public static class CoreServicesRegistrationExtensions
     }
 }
 
-public sealed class AmpCoreServicesOptions
-{
-    public bool UseRedisCache { get; set; } = true;
-    public bool RegisterSecretsService { get; set; } = true;
-    public string DefaultHttpClientName { get; set; } = "default";
-    public TimeSpan DefaultHttpTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public Dictionary<string, string> HttpClients { get; set; } = new()
-    {
-        ["default"] = string.Empty
-    };
-}
-
-internal sealed class AmpHttpClientFactory(IServiceProvider sp) : IAmpHttpClientFactory
-{
-    public IHttpClientService CreateClient(string name)
-    {
-        var factory = sp.GetRequiredService<IHttpClientFactory>();
-        var logger = sp.GetRequiredService<ILogger<HttpClientService>>();
-        return new HttpClientService(factory.CreateClient(name), logger);
-    }
-}

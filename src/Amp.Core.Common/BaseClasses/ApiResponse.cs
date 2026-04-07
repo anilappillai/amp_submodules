@@ -33,24 +33,3 @@ public class ApiResponse<T>
     public static ApiResponse<T> ServerError(string message, string? correlationId = null) =>
         Fail(message, HttpStatusCode.InternalServerError, correlationId);
 }
-
-/// <summary>Non-generic convenience overload for operations that return no data.</summary>
-public class ApiResponse : ApiResponse<object?>
-{
-    public static ApiResponse OkNoData(string? message = null, string? correlationId = null) =>
-        new() { Success = true, Message = message, StatusCode = HttpStatusCode.OK, CorrelationId = correlationId };
-}
-
-/// <summary>
-/// Pagination metadata attached to list responses.
-/// </summary>
-public record PagedResult<T>(
-    IReadOnlyList<T> Items,
-    int TotalCount,
-    int Page,
-    int PageSize)
-{
-    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-    public bool HasPreviousPage => Page > 1;
-    public bool HasNextPage => Page < TotalPages;
-}
