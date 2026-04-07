@@ -1,104 +1,47 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net;
-using System.Security.Claims;
-using System.Text.Json;
 
 namespace Amp.Core.Middleware.Authentication;
 
 /// <summary>
-/// Custom JWT validation middleware that sits in the pipeline before
-/// ASP.NET Core's built-in authentication handler.  It provides:
+/// Optional supplemental middleware that adds structured JWT auth logging and
+/// propagates the Correlation ID into 401/403 responses.
 ///
-///   • Structured logging of auth failures (without leaking token details)
-///   • Correlation ID propagation into auth error responses
-///   • Pre-validation of token structure before the full handler runs
+/// NOTE: This middleware does NOT perform token validation. Token validation is
+/// handled by ASP.NET Core's built-in JWT bearer handler registered via
+/// <c>AddAmpCoreMiddleware(configuration)</c>, which uses OIDC/JWKS discovery.
 ///
-/// NOTE: For standard scenarios you should prefer
-///   builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-///                    .AddJwtBearer(...)
-/// and use this middleware only for additional cross-cutting behaviour.
+/// This middleware is NOT added to the pipeline by default.
+/// <c>UseAmpCoreMiddleware</c> calls <c>UseAuthentication()</c> and
+/// <c>UseAuthorization()</c> directly — those are the auth components that protect
+/// endpoints. Use this middleware only if you need custom post-authentication logic.
 /// </summary>
 public sealed class JwtAuthenticationMiddleware(
     RequestDelegate next,
     IOptions<JwtOptions> options,
     ILogger<JwtAuthenticationMiddleware> logger)
 {
-    private static readonly JwtSecurityTokenHandler _handler = new();
     private readonly JwtOptions _options = options.Value;
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Items["CorrelationId"]?.ToString() ?? string.Empty;
-
-        if (!TryExtractToken(context, out var rawToken))
-        {
-            await next(context); // Let downstream handle unauthenticated requests
-            return;
-        }
-
-        try
-        {
-            var principal = _handler.ValidateToken(rawToken, BuildParameters(), out var validatedToken);
-            context.User = principal;
-            context.Items["JwtToken"] = validatedToken;
-            logger.LogDebug("JWT validated for subject {Subject} | CorrelationId: {CorrelationId}",
-                principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "unknown", correlationId);
-        }
-        catch (SecurityTokenExpiredException)
-        {
-            logger.LogWarning("Expired JWT received | CorrelationId: {CorrelationId}", correlationId);
-            await WriteAuthErrorAsync(context, "Token has expired.", HttpStatusCode.Unauthorized, correlationId);
-            return;
-        }
-        catch (SecurityTokenException ex)
-        {
-            logger.LogWarning("Invalid JWT: {Reason} | CorrelationId: {CorrelationId}", ex.Message, correlationId);
-            await WriteAuthErrorAsync(context, "Token is invalid.", HttpStatusCode.Unauthorized, correlationId);
-            return;
-        }
-
         await next(context);
-    }
 
-    private TokenValidationParameters BuildParameters() => new()
-    {
-        ValidIssuer = _options.Issuer,
-        ValidAudience = _options.Audience,
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = _options.ValidateLifetime,
-        ValidateIssuerSigningKey = true,
-        ClockSkew = _options.ClockSkew,
-        // IssuerSigningKeys resolved via JWKS endpoint configured in AddJwtBearer
-    };
-
-    private static bool TryExtractToken(HttpContext context, out string token)
-    {
-        token = string.Empty;
-        var authHeader = context.Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return false;
-        token = authHeader["Bearer ".Length..].Trim();
-        return !string.IsNullOrWhiteSpace(token);
-    }
-
-    private static async Task WriteAuthErrorAsync(
-        HttpContext context, string message, HttpStatusCode statusCode, string correlationId)
-    {
-        context.Response.StatusCode = (int)statusCode;
-        context.Response.ContentType = "application/json";
-        context.Response.Headers["X-Correlation-Id"] = correlationId;
-        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        // Propagate Correlation ID into any 401/403 that wasn't already handled
+        // by the JwtBearerEvents registered in AddAmpCoreMiddleware.
+        if (context.Response.StatusCode is 401 or 403)
         {
-            success = false,
-            message,
-            correlationId,
-            timestamp = DateTime.UtcNow
-        }));
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrEmpty(correlationId)
+                && !context.Response.Headers.ContainsKey("X-Correlation-Id"))
+            {
+                context.Response.Headers["X-Correlation-Id"] = correlationId;
+            }
+
+            logger.LogWarning(
+                "Request returned {StatusCode} | Authority: {Authority} | CorrelationId: {CorrelationId}",
+                context.Response.StatusCode, _options.Authority, correlationId);
+        }
     }
 }

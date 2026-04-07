@@ -11,22 +11,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Amp.Core.Common\Amp.Core.Common.csproj" />
     <ProjectReference Include="..\Amp.Core.Services.Abstractions\Amp.Core.Services.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- ASP.NET Core -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.*" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.*" />
+    <!-- ASP.NET Core JWT Bearer -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
 
     <!-- Logging -->
     <PackageReference Include="Serilog.AspNetCore" Version="8.*" />
     <PackageReference Include="Serilog.Enrichers.CorrelationId" Version="3.*" />
-
-    <!-- JWT -->
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.*" />
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.*" />
   </ItemGroup>
 
 </Project>
