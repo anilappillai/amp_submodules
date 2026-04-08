@@ -16,6 +16,14 @@ namespace Amp.Core.Extensions.ServiceCollection;
 /// </summary>
 public static class CommonServiceExtensions
 {
+    /// <summary>
+    /// Registers common infrastructure: HTTP context accessor, memory cache, response compression,
+    /// CORS (<c>AmpCorePolicy</c>), health checks, and API versioning.
+    /// </summary>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="configuration">Application configuration (used by downstream registrations).</param>
+    /// <param name="applicationName">Logical name of the application (used in health check tags).</param>
+    /// <param name="configure">Optional delegate to override <see cref="CoreServicesOptions"/> defaults.</param>
     public static IServiceCollection AddCoreServices(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -33,10 +41,19 @@ public static class CommonServiceExtensions
 
         if (options.EnableCors)
             services.AddCors(cors => cors.AddPolicy("AmpCorePolicy", policy =>
-                policy.WithOrigins(options.AllowedOrigins)
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials()));
+            {
+                // AllowAnyOrigin() and AllowCredentials() are mutually exclusive per the
+                // CORS spec. When the wildcard sentinel ["*"] is used (development default),
+                // allow any origin without credentials. For explicit origin lists, credentials
+                // are permitted because the browser will validate the specific origin.
+                var isWildcard = options.AllowedOrigins is ["*"];
+                if (isWildcard)
+                    policy.AllowAnyOrigin();
+                else
+                    policy.WithOrigins(options.AllowedOrigins).AllowCredentials();
+
+                policy.AllowAnyMethod().AllowAnyHeader();
+            }));
 
         services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
