@@ -5,6 +5,7 @@ using Amp.Core.Services.Abstractions.Secrets;
 using Amp.Core.Services.Caching;
 using Amp.Core.Services.Database;
 using Amp.Core.Services.Http;
+using Amp.Core.Services.Resilience;
 using Amp.Core.Services.Secrets;
 using Amp.Core.Common.Helpers;
 using Microsoft.Extensions.Configuration;
@@ -55,14 +56,20 @@ public static class CoreServicesRegistrationExtensions
         // ── HTTP clients ──────────────────────────────────────────────────────
         foreach (var (name, baseUrl) in options.HttpClients)
         {
-            services.AddHttpClient(name, client =>
+            var clientBuilder = services.AddHttpClient(name, client =>
             {
                 if (!string.IsNullOrWhiteSpace(baseUrl))
                     client.BaseAddress = new Uri(baseUrl);
                 client.Timeout = options.DefaultHttpTimeout;
-            })
-            .AddStandardResilienceHandler(); // retry + circuit-breaker via Polly
+            });
+
+            if (options.EnableResilience)
+                clientBuilder.AddAmpResilienceHandler(options.ResilienceOptions);
         }
+
+        // Register the general-purpose pipeline for non-HTTP resilience (DB, AWS SDK, etc.)
+        if (options.EnableResilience)
+            services.AddAmpResiliencePipeline();
 
         services.AddScoped<IHttpClientService>(sp =>
         {

@@ -42,7 +42,7 @@ public static class CommonServiceExtensions
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
 
         if (options.EnableApiVersioning)
-            services.AddCoreApiVersioning();
+            services.AddCoreApiVersioning(options.ConfigureApiVersioning);
 
         return services;
     }

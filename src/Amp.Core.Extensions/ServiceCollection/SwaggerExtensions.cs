@@ -1,7 +1,7 @@
+using Amp.Core.Extensions.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -9,23 +9,93 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 namespace Amp.Core.Extensions.ServiceCollection;
 
 /// <summary>
-/// Registers Swagger/OpenAPI with versioned documents and JWT bearer auth support.
-/// Usage: builder.Services.AddCoreSwagger("Amp.Facebook.Api", "Social platform API");
+/// Controls Swagger/OpenAPI generation and UI behaviour for AMP APIs.
+/// </summary>
+public sealed class AmpSwaggerOptions
+{
+    /// <summary>API title shown in the Swagger UI header. Required.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Human-readable description shown in the Swagger UI.</summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When <c>true</c>, the JWT Bearer security definition is added to the Swagger
+    /// document so developers can authenticate directly in the UI. Default: <c>true</c>.
+    /// </summary>
+    public bool EnableJwtAuth { get; set; } = true;
+
+    /// <summary>
+    /// When <c>true</c>, Swagger UI is served in all environments.
+    /// When <c>false</c> (default), UI is only served in Development.
+    ///
+    /// Useful for staging environments that need API exploration without publishing
+    /// the UI in production.
+    /// </summary>
+    public bool EnableInAllEnvironments { get; set; } = false;
+
+    /// <summary>
+    /// Contact information embedded in each versioned OpenAPI document.
+    /// Optional — omitted from the document when null.
+    /// </summary>
+    public AmpApiContact? Contact { get; set; }
+}
+
+/// <summary>Contact details embedded in the OpenAPI info block.</summary>
+public sealed class AmpApiContact
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public Uri? Url { get; set; }
+}
+
+/// <summary>
+/// Registers Swagger/OpenAPI generation with versioned documents, JWT auth,
+/// correlation ID headers, and API version deprecation metadata.
+///
+/// Typical usage in Program.cs:
+/// <code>
+///   // Services
+///   builder.Services.AddCoreSwagger(o =>
+///   {
+///       o.Title       = "Payments API";
+///       o.Description = "Handles all payment flows";
+///       o.Contact     = new AmpApiContact { Name = "Platform Team", Email = "platform@amp.com" };
+///   });
+///
+///   // Pipeline
+///   app.UseAmpCoreSwagger();
+/// </code>
 /// </summary>
 public static class SwaggerExtensions
 {
     public static IServiceCollection AddCoreSwagger(
         this IServiceCollection services,
-        string title,
-        string description = "",
-        bool enableJwtAuth = true)
+        Action<AmpSwaggerOptions> configure)
     {
+        var opts = new AmpSwaggerOptions();
+        configure(opts);
+
+        // ConfigureSwaggerOptions generates one OpenApiInfo per discovered API version.
         services.AddTransient<IConfigureOptions<SwaggerGenOptions>>(sp =>
-            new ConfigureSwaggerOptions(sp.GetRequiredService<IApiVersionDescriptionProvider>(), title, description));
+            new ConfigureSwaggerOptions(
+                sp.GetRequiredService<IApiVersionDescriptionProvider>(),
+                opts.Title,
+                opts.Description,
+                opts.Contact));
 
         services.AddSwaggerGen(options =>
         {
-            if (!enableJwtAuth) return;
+            // ── API version metadata in every operation ────────────────────────
+            // Resolves from DI so ApiVersionSunsetPolicy (if registered) is injected.
+            options.OperationFilter<ApiVersionMetadataFilter>(
+                services.BuildServiceProvider().GetService<ApiVersionSunsetPolicy>());
+
+            // ── Correlation ID header on every operation ───────────────────────
+            options.OperationFilter<CorrelationIdOperationFilter>();
+
+            // ── JWT bearer auth ────────────────────────────────────────────────
+            if (!opts.EnableJwtAuth) return;
 
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
@@ -39,35 +109,53 @@ public static class SwaggerExtensions
 
             options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
             {
-                {
-                    new OpenApiSecuritySchemeReference("Bearer"),
-                    []
-                }
+                { new OpenApiSecuritySchemeReference("Bearer"), [] }
             });
-
-            options.OperationFilter<CorrelationIdOperationFilter>();
         });
 
         return services;
     }
 
     /// <summary>
-    /// Enables Swagger and SwaggerUI (with versioned endpoints) in Development.
-    /// Usage: app.UseAmpCoreSwagger();
+    /// Adds Swagger JSON and SwaggerUI to the pipeline.
+    ///
+    /// Respects <see cref="AmpSwaggerOptions.EnableInAllEnvironments"/>:
+    ///   — Default (false): UI only served in Development.
+    ///   — True: UI served in all environments (staging, production).
+    ///
+    /// Usage:
+    /// <code>
+    ///   app.UseAmpCoreSwagger();
+    /// </code>
     /// </summary>
-    public static IApplicationBuilder UseAmpCoreSwagger(this WebApplication app)
+    public static IApplicationBuilder UseAmpCoreSwagger(
+        this WebApplication app,
+        Action<AmpSwaggerOptions>? configure = null)
     {
-        if (!app.Environment.IsDevelopment())
-            return app;
+        var opts = new AmpSwaggerOptions();
+        configure?.Invoke(opts);
+
+        bool shouldServe = opts.EnableInAllEnvironments || app.Environment.EnvironmentName
+            .Equals("Development", StringComparison.OrdinalIgnoreCase);
+
+        if (!shouldServe) return app;
 
         app.UseSwagger();
-        app.UseSwaggerUI(opts =>
+        app.UseSwaggerUI(ui =>
         {
             foreach (var desc in app.DescribeApiVersions())
-                opts.SwaggerEndpoint($"/swagger/{desc.GroupName}/swagger.json", desc.GroupName);
+            {
+                var label = desc.IsDeprecated
+                    ? $"{desc.GroupName} (deprecated)"
+                    : desc.GroupName;
+                ui.SwaggerEndpoint($"/swagger/{desc.GroupName}/swagger.json", label);
+            }
+
+            // Expand only the first (latest) version by default.
+            ui.DefaultModelsExpandDepth(-1);
+            ui.DisplayRequestDuration();
         });
 
         return app;
     }
 }
-
