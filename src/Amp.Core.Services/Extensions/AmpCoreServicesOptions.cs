@@ -1,4 +1,5 @@
 using Amp.Core.Services.Resilience;
+using Amp.Core.Services.Secrets;
 
 namespace Amp.Core.Services.Extensions;
 
@@ -24,4 +25,10 @@ public sealed class AmpCoreServicesOptions
     /// Only used when <see cref="EnableResilience"/> is <c>true</c>.
     /// </summary>
     public AmpHttpResilienceOptions ResilienceOptions { get; set; } = new();
+
+    /// <summary>
+    /// Tuning options for the AWS Secrets Manager in-process cache.
+    /// Only used when <see cref="RegisterSecretsService"/> is <c>true</c>.
+    /// </summary>
+    public AwsSecretsCacheOptions SecretsCacheOptions { get; set; } = new();
 }

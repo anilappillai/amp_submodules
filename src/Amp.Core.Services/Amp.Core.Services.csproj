@@ -18,6 +18,7 @@
   <ItemGroup>
     <!-- AWS -->
     <PackageReference Include="AWSSDK.SecretsManager" Version="3.7.*" />
+    <PackageReference Include="AWSSDK.SecretsManager.Caching" Version="1.*" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.*" />
 
     <!-- Database -->
@@ -27,6 +28,7 @@
     <!-- Caching -->
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.*" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.*" />
+    <PackageReference Include="StackExchange.Redis" Version="2.*" />
 
     <!-- HTTP -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.*" />

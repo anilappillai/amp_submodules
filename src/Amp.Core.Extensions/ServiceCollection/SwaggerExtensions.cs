@@ -2,6 +2,7 @@ using Amp.Core.Extensions.Versioning;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -84,12 +85,17 @@ public static class SwaggerExtensions
                 opts.Description,
                 opts.Contact));
 
+        // Ensure a default ApiVersionSunsetPolicy is available for DI injection into
+        // ApiVersionMetadataFilter. Consuming apps can override this with their own
+        // registration before calling AddCoreSwagger (TryAddSingleton won't overwrite).
+        services.TryAddSingleton(new ApiVersionSunsetPolicy());
+
         services.AddSwaggerGen(options =>
         {
             // ── API version metadata in every operation ────────────────────────
-            // Resolves from DI so ApiVersionSunsetPolicy (if registered) is injected.
-            options.OperationFilter<ApiVersionMetadataFilter>(
-                services.BuildServiceProvider().GetService<ApiVersionSunsetPolicy>());
+            // No constructor args — Swashbuckle resolves ApiVersionMetadataFilter
+            // from DI, injecting ApiVersionSunsetPolicy automatically.
+            options.OperationFilter<ApiVersionMetadataFilter>();
 
             // ── Correlation ID header on every operation ───────────────────────
             options.OperationFilter<CorrelationIdOperationFilter>();

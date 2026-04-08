@@ -11,6 +11,7 @@ using Amp.Core.Common.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Amp.Core.Services.Extensions;
 
@@ -46,6 +47,13 @@ public static class CoreServicesRegistrationExtensions
         if (!string.IsNullOrWhiteSpace(redisConnection) && options.UseRedisCache)
         {
             services.AddStackExchangeRedisCache(o => o.Configuration = redisConnection);
+
+            // IConnectionMultiplexer is needed by DistributedCachingService.RemoveByPrefixAsync
+            // to perform SCAN-based prefix deletion. Registered as singleton — one connection
+            // pool per process is the StackExchange.Redis recommendation.
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(redisConnection));
+
             services.AddScoped<ICachingService, DistributedCachingService>();
         }
         else
@@ -90,7 +98,10 @@ public static class CoreServicesRegistrationExtensions
             var region = EnvironmentHelper.AwsRegion;
 
             services.AddSingleton<ISecretsService>(sp =>
-                new AwsSecretsService(secretName, region, sp.GetRequiredService<ILogger<AwsSecretsService>>()));
+                new AwsSecretsService(
+                    secretName, region,
+                    sp.GetRequiredService<ILogger<AwsSecretsService>>(),
+                    options.SecretsCacheOptions));
         }
 
         return services;
